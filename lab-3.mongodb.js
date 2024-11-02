@@ -454,50 +454,56 @@ db.createCollection("userProfiles", {
   },
 });
 
-db.userProfiles.insertOne({ // Este va
+db.userProfiles.insertOne({
+  // Este va
   user_id: new ObjectId("573a1390f29313caabcd418c"),
   language: "Spanish",
-  favorite_genres: ['blues', 'Blues']
+  favorite_genres: ["blues", "Blues"],
 });
 
-db.userProfiles.insertOne({ // Este va
+db.userProfiles.insertOne({
+  // Este va
   user_id: new ObjectId("573a1390f29313caabcd418c"),
   language: "Spanish",
 });
 
-db.userProfiles.insertOne({ // Este no va
+db.userProfiles.insertOne({
+  // Este no va
   user_id: new ObjectId("573a1a90f29313caabcd418c"),
   language: "Spanish",
-  favorite_genres: ['blues', 'blues']
+  favorite_genres: ["blues", "blues"],
 });
 
-db.userProfiles.insertOne({ // Este no va
+db.userProfiles.insertOne({
+  // Este no va
   user_id: new ObjectId("573a1390f29313caabcd418c"),
   language: "spanish", // sin mayuscula
 });
 
-db.userProfiles.insertOne({ // Este no va
+db.userProfiles.insertOne({
+  // Este no va
   user_id: new ObjectId("573a1390f29313caabcd428c"),
   language: "Espanol", // No forma parte de los enum
 });
 
-db.userProfiles.insertOne({ // Este no va
+db.userProfiles.insertOne({
+  // Este no va
   user_id: "573a1390f29313caabcd411c", // no es un ObjectId
   language: "Spanish",
 });
 
-// 6. Identificar los distintos tipos de relaciones (One-To-One, One-To-Many) en las 
-// colecciones movies y comments. Determinar si se usó documentos anidados o 
+// 6. Identificar los distintos tipos de relaciones (One-To-One, One-To-Many) en las
+// colecciones movies y comments. Determinar si se usó documentos anidados o
 // referencias en cada relación y justificar la razón.
 
 db.getCollectionInfos({ name: "comments" });
 db.comments.findOne();
 
 db.comments.aggregate([
-  { $project: { fields: { $objectToArray: "$$ROOT" } } },  // Convierte los campos en un array
-  { $unwind: "$fields" },                                 // Descompone el array en documentos
-  { $group: { _id: null, uniqueFields: { $addToSet: "$fields.k" } } } // Agrupa y obtiene solo los campos únicos
-])
+  { $project: { fields: { $objectToArray: "$$ROOT" } } }, // Convierte los campos en un array
+  { $unwind: "$fields" }, // Descompone el array en documentos
+  { $group: { _id: null, uniqueFields: { $addToSet: "$fields.k" } } }, // Agrupa y obtiene solo los campos únicos
+]);
 
 // ------------ Estructura movies ------------
 // {
@@ -512,7 +518,7 @@ db.comments.aggregate([
 //   ...
 // }
 
-// documentos anidados: pertenece a la misma collection/documento, no 
+// documentos anidados: pertenece a la misma collection/documento, no
 // hace referencia a otra
 
 // ------------ Estructura comments ------------
@@ -524,3 +530,214 @@ db.comments.aggregate([
 //   "name"     // One-To-One | documentos anidados
 //   "movie_id" // One-To-One | referencia
 // }
+
+// Dado el diagrama de la base de datos shop junto con las queries más
+// importantes.
+
+// Queries
+// a. Listar el id, titulo, y precio de los libros y sus categorías de
+// un autor en particular
+// b. Cantidad de libros por categorías
+// c. Listar el nombre y dirección entrega y el monto total
+// (quantity * price) de sus pedidos para un order_id dado.
+
+// Debe crear el modelo de datos en mongodb aplicando las estrategias
+// “Modelo de datos anidados” y Referencias. El modelo de datos debe
+// permitir responder las queries de manera eficiente.
+
+use("shop");
+
+db.createCollection("books", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["book_id"],
+      properties: {
+        book_id: { bsonType: "int" },
+        title: { bsonType: "string" },
+        author: { bsonType: "string" },
+        price: { bsonType: "int" },
+        categories: {
+          bsonType: "array",
+          items: { bsonType: "string" },
+          uniqueItems: true,
+        },
+      },
+    },
+  },
+});
+
+db.createCollection("orders", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["order_id"],
+      properties: {
+        order_id: { bsonType: "int" },
+        delivery_name: { bsonType: "string" },
+        delivery_address: { bsonType: "string" },
+        cc_name: { bsonType: "string" },
+        cc_number: { bsonType: "string" },
+        cc_expiry: { bsonType: "string" },
+        order_details: {
+          bsonType: "array",
+          items: {
+            bsonType: "object",
+            required: ["book_id"],
+            properties: {
+              book_id: { bsonType: "int" },
+              title: { bsonType: "string" },
+              author: { bsonType: "string" },
+              price: { bsonType: "int" },
+              quantity: { bsonType: "int" },
+            },
+          },
+        },
+      },
+    },
+  },
+});
+
+// Inserte algunos documentos para las colecciones del modelo de datos.
+// Opcionalmente puede especificar una regla de validación de esquemas
+// para las colecciones.
+
+db.books.insertMany([
+  {
+    book_id: 1,
+    title: "El Alquimista",
+    author: "Paulo Coelho",
+    price: 10,
+    categories: ["Fiction", "Adventure"],
+  },
+  {
+    book_id: 2,
+    title: "Cien años de soledad",
+    author: "Gabriel García Márquez",
+    price: 15,
+    categories: ["Fiction", "Magic Realism"],
+  },
+  {
+    book_id: 3,
+    title: "1984",
+    author: "George Orwell",
+    price: 12,
+    categories: ["Fiction", "Dystopian"],
+  },
+  {
+    book_id: 4,
+    title: "La Casa de los Espíritus",
+    author: "Isabel Allende",
+    price: 14,
+    categories: ["Fiction", "Historical Fiction"],
+  },
+  {
+    book_id: 5,
+    title: "Fundamentos de Matemáticas",
+    author: "John Doe",
+    price: 20,
+    categories: ["Non-Fiction", "Mathematics"],
+  },
+]);
+
+db.orders.insertMany([
+  {
+    order_id: 1,
+    delivery_name: "Juan Pérez",
+    delivery_address: "Calle Falsa 123",
+    cc_name: "Juan Pérez",
+    cc_number: "1234-5678-9012-3456",
+    cc_expiry: "12/25",
+    order_details: [
+      {
+        book_id: 1,
+        title: "El Alquimista",
+        author: "Paulo Coelho",
+        price: 10,
+        quantity: 2,
+      },
+      {
+        book_id: 3,
+        title: "1984",
+        author: "George Orwell",
+        price: 12,
+        quantity: 1,
+      },
+    ],
+  },
+  {
+    order_id: 2,
+    delivery_name: "María García",
+    delivery_address: "Avenida Siempre Viva 742",
+    cc_name: "María García",
+    cc_number: "2345-6789-0123-4567",
+    cc_expiry: "11/24",
+    order_details: [
+      {
+        book_id: 2,
+        title: "Cien años de soledad",
+        author: "Gabriel García Márquez",
+        price: 15,
+        quantity: 1,
+      },
+      {
+        book_id: 4,
+        title: "La Casa de los Espíritus",
+        author: "Isabel Allende",
+        price: 14,
+        quantity: 3,
+      },
+    ],
+  },
+]);
+
+// Querys
+
+// a. Listar el id, titulo, y precio de los libros y sus categorías de
+// un autor en particular
+
+db.books.find(
+  { author: "Isabel Allende" },
+  { categories: 1, book_id: 1, title: 1, author: 1, price: 1 }
+);
+
+// b. Cantidad de libros por categorías
+
+db.books.aggregate([
+  {
+    $unwind: {
+      path: "$categories",
+      preserveNullAndEmptyArrays: false,
+    },
+  },
+  {
+    $group: {
+      _id: "$categories",
+      count: { $sum: 1 },
+    },
+  },
+]);
+
+// c. Listar el nombre y dirección entrega y el monto total
+// (quantity * price) de sus pedidos para un order_id dado.
+
+db.orders.aggregate([
+  {
+    $match: { order_id: 1 },
+  },
+  {
+    $unwind: {
+      path: "$order_details",
+      preserveNullAndEmptyArrays: false,
+    },
+  },
+  {
+    $project: {
+      delivery_name: 1,
+      delivery_address: 1,
+      monto_total: {
+        $multiply: ["$order_details.price", "$order_details.quantity"],
+      },
+    },
+  },
+]);
