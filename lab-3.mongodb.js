@@ -741,3 +741,178 @@ db.orders.aggregate([
     },
   },
 ]);
+
+// 8.a Crear 3 modelos de datos distintos en mongodb aplicando solo las
+// estrategias “Modelo de datos anidados” y Referencias (es decir, sin
+// considerar queries).
+
+use("blog");
+
+db.createCollection("articles", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["article_id", "user_id"],
+      properties: {
+        article_id: { bsonType: "objectId" },
+        user_id: { bsonType: "objectId" },
+        title: { bsonType: "string" },
+        date: { bsonType: "date" },
+        text: { bsonType: "string" },
+        url: { bsonType: "string" },
+        categories: {
+          bsonType: "array",
+          items: { bsonType: "string" },
+          uniqueItems: true,
+        },
+        tags: {
+          bsonType: "array",
+          items: { bsonType: "string" },
+          uniqueItems: true,
+        },
+        comments: {
+          bsonType: "array",
+          items: {
+            bsonType: "object",
+            required: ["user_id"],
+            properties: {
+              user_id: { bsonType: "objectId" },
+              date: { bsonType: "date" },
+              text: { bsonType: "string" },
+            },
+          },
+        },
+      },
+    },
+  },
+});
+
+db.createCollection("users", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["user_id"],
+      properties: {
+        user_id: { bsonType: "objectId" },
+        name: { bsonType: "string" },
+        email: { bsonType: "string" },
+      },
+    },
+  },
+});
+
+// 8.b Crear un modelo de datos en mongodb aplicando las estrategias “Modelo de
+// datos anidados” y Referencias y considerando las siguientes queries.
+
+// i. Listar título y url, tags y categorías de los artículos dado un user_id
+// ii. Listar título, url y comentarios que se realizaron en un rango de fechas.
+// iii. Listar nombre y email dado un id de usuario
+
+// Inserte algunos documentos para las colecciones del modelo de datos.
+// Opcionalmente puede especificar una regla de validación de esquemas
+// para las colecciones..
+
+db.users.insertMany([
+  {
+    user_id: ObjectId(), // Se genera automáticamente
+    name: "Juan Pérez",
+    email: "juan.perez@example.com",
+  },
+  {
+    user_id: ObjectId(), // Se genera automáticamente
+    name: "María García",
+    email: "maria.garcia@example.com",
+  },
+  {
+    user_id: ObjectId(), // Se genera automáticamente
+    name: "Carlos López",
+    email: "carlos.lopez@example.com",
+  },
+]);
+
+db.articles.insertMany([
+  {
+    article_id: ObjectId(), // Se genera automáticamente
+    user_id: db.users.findOne({ name: "Juan Pérez" }).user_id, // Referencia al user_id de Juan Pérez
+    title: "Introducción a MongoDB",
+    date: new Date("2023-01-15"),
+    text: "Este artículo es una introducción a MongoDB, una base de datos NoSQL.",
+    url: "https://ejemplo.com/introduccion-a-mongodb",
+    categories: ["Bases de Datos", "NoSQL"],
+    tags: ["MongoDB", "NoSQL", "Tutorial"],
+    comments: [
+      {
+        user_id: db.users.findOne({ name: "María García" }).user_id, // Referencia al user_id de María García
+        date: new Date("2023-01-16"),
+        text: "¡Gran artículo! Me ayudó mucho.",
+      },
+      {
+        user_id: db.users.findOne({ name: "Carlos López" }).user_id, // Referencia al user_id de Carlos López
+        date: new Date("2023-01-17"),
+        text: "Interesante, gracias por compartir.",
+      },
+    ],
+  },
+  {
+    article_id: ObjectId(), // Se genera automáticamente
+    user_id: db.users.findOne({ name: "Carlos López" }).user_id, // Referencia al user_id de Carlos López
+    title: "Aprendiendo JavaScript",
+    date: new Date("2023-02-05"),
+    text: "JavaScript es un lenguaje de programación versátil que se utiliza en el desarrollo web.",
+    url: "https://ejemplo.com/aprendiendo-javascript",
+    categories: ["Programación", "Web"],
+    tags: ["JavaScript", "Desarrollo Web", "Tutorial"],
+    comments: [],
+  },
+]);
+
+userId = db.users.findOne({ name: "María García" }).user_id;
+db.articles.updateOne(
+  { title: "Aprendiendo JavaScript" },
+  {
+    $push: {
+      comments: {
+        user_id: userId,
+        date: new Date("2023-01-17"),
+        text: "Interesante, gracias por compartir.",
+      },
+    },
+  }
+);
+
+// i. Listar título y url, tags y categorías de los artículos dado un user_id
+
+const userId = db.users.findOne({ name: "Carlos López" }).user_id;
+db.articles.find(
+  { user_id: userId },
+  { title: 1, url: 1, categories: 1, tags: 1 }
+);
+
+// ii. Listar título, url y comentarios que se realizaron en un rango de fechas.
+
+db.articles.aggregate([
+  {
+    $unwind: {
+      path: "$comments",
+      preserveNullAndEmptyArrays: false,
+    },
+  },
+  {
+    $match: {
+      "comments.date": {
+        $gte: ISODate("2023-01-17"),
+        $lte: ISODate("2023-01-18"),
+      },
+    },
+  },
+  {
+    $group: {
+      _id: "$article_id",
+      title: { $first: "$title" },
+      url: { $first: "$url" },
+      comments: { $push: "$comments" },
+    }
+  },
+]);
+
+// iii. Listar nombre y email dado un id de usuario
