@@ -333,36 +333,36 @@ db.runCommand({
       bsonType: "object",
       required: ["title", "year"],
       properties: {
-        "title": {
+        title: {
           bsonType: "string",
         },
-        "year": {
+        year: {
           bsonType: "int",
           minimum: 3000,
           minimum: 1900,
         },
-        "cast": {
+        cast: {
           bsonType: "array",
           uniqueItems: true,
           items: {
             bsonType: "string",
           },
         },
-        "directors": {
+        directors: {
           bsonType: "array",
           uniqueItems: true,
           items: {
             bsonType: "string",
           },
         },
-        "countries": {
+        countries: {
           bsonType: "array",
           uniqueItems: true,
           items: {
             bsonType: "string",
           },
         },
-        "genres": {
+        genres: {
           bsonType: "array",
           uniqueItems: true,
           items: {
@@ -374,16 +374,18 @@ db.runCommand({
   },
 });
 
-db.movies.insertOne({ // No va
+db.movies.insertOne({
+  // No va
   title: "Inception",
   year: NumberInt(2010), // Usar NumberInt() para asegurar el tipo
   cast: ["Leonardo DiCaprio", "Joseph Gordon-Levitt", "Elliot Page"],
   directors: ["Christopher Nolan"],
   countries: ["USA"],
-  genres: ["Action", "Sci-Fi","Sci-Fi", "Thriller"], // Duplicado
+  genres: ["Action", "Sci-Fi", "Sci-Fi", "Thriller"], // Duplicado
 });
 
-db.movies.insertOne({ // Al parecer anda
+db.movies.insertOne({
+  // Al parecer anda
   title: "Inception",
   year: 2010, // Sin NumberInt() para asegurar el tipo
   cast: ["Leonardo DiCaprio", "Joseph Gordon-Levitt", "Elliot Page"],
@@ -397,7 +399,7 @@ db.movies.insertOne({
   year: NumberInt(2010),
   cast: ["Leonardo DiCaprio", "Joseph Gordon-Levitt", "Elliot Page"],
   directors: ["Christopher Nolan"],
-  countries: ["USA","USA"], // Duplicado
+  countries: ["USA", "USA"], // Duplicado
   genres: ["Action", "Sci-Fi", "Thriller"],
 });
 
@@ -417,4 +419,69 @@ db.movies.insertOne({
   directors: ["Christopher Nolan"],
   countries: ["USA"],
   genres: ["Action", "Sci-Fi", "Thriller"],
+});
+
+// 5. Crear una colección userProfiles con las siguientes reglas de validación: Tenga
+// un campo user_id (requerido) de tipo “objectId”, un campo language (requerido) con
+// alguno de los siguientes valores [ “English”, “Spanish”, “Portuguese” ] y un campo
+// favorite_genres (no requerido) que sea un array de strings sin duplicados.
+
+db.createCollection("userProfiles", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["user_id", "language"],
+      properties: {
+        user_id: {
+          bsonType: "objectId",
+          description: "",
+        },
+        language: {
+          bsonType: "string",
+          enum: ["English", "Spanish", "Portuguese"],
+          description: "",
+        },
+        favorite_genres: {
+          bsonType: "array",
+          uniqueItems: true,
+          description: "",
+          items: {
+            bsonType: "string",
+          },
+        },
+      },
+    },
+  },
+});
+
+db.userProfiles.insertOne({ // Este va
+  user_id: new ObjectId("573a1390f29313caabcd418c"),
+  language: "Spanish",
+  favorite_genres: ['blues', 'Blues']
+});
+
+db.userProfiles.insertOne({ // Este va
+  user_id: new ObjectId("573a1390f29313caabcd418c"),
+  language: "Spanish",
+});
+
+db.userProfiles.insertOne({ // Este no va
+  user_id: new ObjectId("573a1a90f29313caabcd418c"),
+  language: "Spanish",
+  favorite_genres: ['blues', 'blues']
+});
+
+db.userProfiles.insertOne({ // Este no va
+  user_id: new ObjectId("573a1390f29313caabcd418c"),
+  language: "spanish", // sin mayuscula
+});
+
+db.userProfiles.insertOne({ // Este no va
+  user_id: new ObjectId("573a1390f29313caabcd428c"),
+  language: "Espanol", // No forma parte de los enum
+});
+
+db.userProfiles.insertOne({ // Este no va
+  user_id: "573a1390f29313caabcd411c", // no es un ObjectId
+  language: "Spanish",
 });
