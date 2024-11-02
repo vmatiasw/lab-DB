@@ -485,3 +485,42 @@ db.userProfiles.insertOne({ // Este no va
   user_id: "573a1390f29313caabcd411c", // no es un ObjectId
   language: "Spanish",
 });
+
+// 6. Identificar los distintos tipos de relaciones (One-To-One, One-To-Many) en las 
+// colecciones movies y comments. Determinar si se usó documentos anidados o 
+// referencias en cada relación y justificar la razón.
+
+db.getCollectionInfos({ name: "comments" });
+db.comments.findOne();
+
+db.comments.aggregate([
+  { $project: { fields: { $objectToArray: "$$ROOT" } } },  // Convierte los campos en un array
+  { $unwind: "$fields" },                                 // Descompone el array en documentos
+  { $group: { _id: null, uniqueFields: { $addToSet: "$fields.k" } } } // Agrupa y obtiene solo los campos únicos
+])
+
+// ------------ Estructura movies ------------
+// {
+//   Validados:
+//   "title": "string",        // One-To-One  | documentos anidados
+//   "year": "int",            // One-To-One  | documentos anidados
+//   "cast": ["string"],       // One-To-Many | documentos anidados
+//   "directors": ["string"],  // One-To-Many | documentos anidados
+//   "countries": ["string"],  // One-To-Many | documentos anidados
+//   "genres": ["string"]      // One-To-Many | documentos anidados
+//   No Validados:
+//   ...
+// }
+
+// documentos anidados: pertenece a la misma collection/documento, no 
+// hace referencia a otra
+
+// ------------ Estructura comments ------------
+// {
+//   "email"    // One-To-One | documentos anidados
+//   "date"     // One-To-One | documentos anidados
+//   "_id"      // One-To-One | documentos anidados
+//   "text"     // One-To-One | documentos anidados
+//   "name"     // One-To-One | documentos anidados
+//   "movie_id" // One-To-One | referencia
+// }
