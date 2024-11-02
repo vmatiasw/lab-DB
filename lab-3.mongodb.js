@@ -331,38 +331,38 @@ db.runCommand({
   validator: {
     $jsonSchema: {
       bsonType: "object",
-      required: [title, year],
+      required: ["title", "year"],
       properties: {
-        title: {
+        "title": {
           bsonType: "string",
         },
-        year: {
+        "year": {
           bsonType: "int",
           minimum: 3000,
           minimum: 1900,
         },
-        cast: {
+        "cast": {
           bsonType: "array",
           uniqueItems: true,
           items: {
             bsonType: "string",
           },
         },
-        directors: {
+        "directors": {
           bsonType: "array",
           uniqueItems: true,
           items: {
             bsonType: "string",
           },
         },
-        countries: {
+        "countries": {
           bsonType: "array",
           uniqueItems: true,
           items: {
             bsonType: "string",
           },
         },
-        genres: {
+        "genres": {
           bsonType: "array",
           uniqueItems: true,
           items: {
@@ -374,9 +374,45 @@ db.runCommand({
   },
 });
 
-db.movies.insertOne({
+db.movies.insertOne({ // No va
   title: "Inception",
   year: NumberInt(2010), // Usar NumberInt() para asegurar el tipo
+  cast: ["Leonardo DiCaprio", "Joseph Gordon-Levitt", "Elliot Page"],
+  directors: ["Christopher Nolan"],
+  countries: ["USA"],
+  genres: ["Action", "Sci-Fi","Sci-Fi", "Thriller"], // Duplicado
+});
+
+db.movies.insertOne({ // Al parecer anda
+  title: "Inception",
+  year: 2010, // Sin NumberInt() para asegurar el tipo
+  cast: ["Leonardo DiCaprio", "Joseph Gordon-Levitt", "Elliot Page"],
+  directors: ["Christopher Nolan"],
+  countries: ["USA"],
+  genres: ["Action", "Sci-Fi", "Thriller"],
+});
+
+db.movies.insertOne({
+  title: "Inception",
+  year: NumberInt(2010),
+  cast: ["Leonardo DiCaprio", "Joseph Gordon-Levitt", "Elliot Page"],
+  directors: ["Christopher Nolan"],
+  countries: ["USA","USA"], // Duplicado
+  genres: ["Action", "Sci-Fi", "Thriller"],
+});
+
+db.movies.insertOne({
+  title: 1984, // int
+  year: NumberInt(2010),
+  cast: ["Leonardo DiCaprio", "Joseph Gordon-Levitt", "Elliot Page"],
+  directors: ["Christopher Nolan"],
+  countries: ["USA"],
+  genres: ["Action", "Sci-Fi", "Thriller"],
+});
+
+db.movies.insertOne({
+  title: "1984",
+  year: "2010", // str
   cast: ["Leonardo DiCaprio", "Joseph Gordon-Levitt", "Elliot Page"],
   directors: ["Christopher Nolan"],
   countries: ["USA"],
