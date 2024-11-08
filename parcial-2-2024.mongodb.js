@@ -237,7 +237,7 @@ db.grades.findOne({
 // [x] los tipos
 // [] score_avg y letter correspondan si existen
 // [x] 0 <= score <= 100
-// [] type sea "exam", ....
+// [] type sea "exam", .... (primero le preguntaria al cliente si le parece)
 
 db.runCommand({
   collMod: "grades",
@@ -264,7 +264,7 @@ db.runCommand({
       },
     },
   },
-  validationLevel: "strict", // para que pida mofiifcar los datos viejos si estan mal y se quieren modificar
+  validationLevel: "strict", // para que pida modificar los datos viejos si estan mal y se quieren modificar
   validationAction: "error", // para que de error ante datos invalidos
 });
 
@@ -344,7 +344,7 @@ db.grades.insertOne({
   ],
   class_id: 339,
   score_avg: 68.8558137001597,
-  letter: 1, // deberia ser str
+  letter: 1, // deberia ser str (a pesar de que es opcional)
 });
 
 db.grades.insertOne({
