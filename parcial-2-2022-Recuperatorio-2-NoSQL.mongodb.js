@@ -163,7 +163,8 @@ db.restaurants.updateMany(
 // Con pipeline:
 casoManhattan = { day: "Tuesday", amount: 0.05 };
 casoXDefecto = { day: "Monday", amount: 0.21 };
-db.restaurants.updateMany({ cuisine: { $in: ["Bakery", "Coffee"] } }, [
+db.restaurants.updateMany(
+  { cuisine: { $in: ["Bakery", "Coffee"] } }, [
   {
     $set: {
       discounts: {
