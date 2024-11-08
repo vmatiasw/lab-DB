@@ -332,6 +332,526 @@ db.restaurants.aggregate([
 db.restaurants.findOne();
 db.restaurants.aggregate([
   {
-    $match: {},
+    $unwind: {
+      path: "$grades",
+      preserveNullAndEmptyArrays: false,
+    },
+  },
+  {
+    $match: {
+      $expr: {
+        $and: [
+          { $eq: [{ $year: "$grades.date" }, 2013] },
+          { $gte: [{ $month: "$grades.date" }, 7] }, // Meses de julio a diciembre
+        ],
+      },
+    },
+  },
+  {
+    $group: {
+      _id: { grade: "$grades.grade", cuisine: "$cuisine" },
+      numero: { $sum: 1 },
+    },
   },
 ]);
+
+// EJ eliminar duplicados:
+db.restaurants.aggregate([
+  {
+    $group: {
+      _id: "$name", // Agrupa por el campo 'name'
+      firstRestaurant: { $first: "$$ROOT" }, // Selecciona el primer documento de cada grupo
+    },
+  },
+  {
+    $replaceRoot: { newRoot: "$firstRestaurant" }, // Reemplaza el documento con el primer restaurante de cada grupo
+  },
+]);
+
+// Usar distinct para Obtener Documentos Únicos
+db.restaurants.distinct("name");
+
+// 5. Data la siguiente tabla de conversión
+// de notas (grades.grade):
+// A -> 5 | B -> 4 | C -> 3 | D -> 2 | * -> 1
+// Donde "*" sería el resto de los casos
+// posibles. Transformar las notas de los
+// restaurantes de acuerdo a la tabla. Luego,
+// calcular la nota promedio, máxima y
+// mínima por tipo de cocina (cuisine). El
+// resultado final deberá mostrar la cocina, la
+// nota promedio, la nota máxima y la nota
+// mínima, ordenadas de manera descendente
+// por la nota promedio. Hint: Revisar el
+// operador $switch
+db.restaurants.findOne();
+
+db.restaurants.aggregate([
+  {
+    $unwind: {
+      path: "$grades",
+      preserveNullAndEmptyArrays: false,
+    },
+  },
+  {
+    $set: {
+      "grades.score": {
+        //$expr: {
+        $switch: {
+          branches: [
+            { case: { $eq: ["$grades.grade", "A"] }, then: 5 },
+            { case: { $eq: ["$grades.grade", "B"] }, then: 4 },
+            { case: { $eq: ["$grades.grade", "C"] }, then: 3 },
+            { case: { $eq: ["$grades.grade", "D"] }, then: 2 },
+          ],
+          default: 1,
+        },
+        //},
+      },
+    },
+  },
+  {
+    $group: {
+      _id: "$cuisine",
+      promedio: { $avg: "$grades.score" },
+      maxima: { $max: "$grades.score" },
+      minima: { $min: "$grades.score" },
+    },
+  },
+  {
+    $sort: {
+      promedio: -1,
+    },
+  },
+]);
+
+// 6. Especificar reglas de validación para la colección
+// restaurant utilizando JSON
+// Schema. Tener en cuenta los campos: address (con sus
+//   campos anidados),
+// borough, cuisine, grades (con sus campos anidados),
+// name, restaurant_id, y
+// discount (con sus campos anidados). Inferir tipos y
+// otras restricciones que considere
+// adecuadas (incluyendo campos requeridos). Agregar una
+// regla de validación para
+// que el zipcode, aún siendo un string, verifique que
+// el rango esté dentro de lo
+// permitido para New York City (i.e. 10001-11697).
+// Finalmente dejar 2 casos de falla
+// ante el esquema de validación y 1 caso de éxito.
+// Hint: Deberán hacer conversión
+// con $convert en el caso de la regla de validación.
+// Los casos no deben ser triviales
+// (i.e. sólo casos de falla por un error de tipos).
+db.restaurants.findOne();
+
+db.runCommand({
+  collMod: "restaurants",
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: [
+        "address",
+        "borough",
+        "cuisine",
+        "grades",
+        "name",
+        "restaurant_id",
+        "discount",
+      ],
+      properties: {
+        address: {
+          bsonType: "object",
+          required: ["building", "coord", "street", "zipcode"],
+          properties: {
+            building: { bsonType: "string" },
+            coord: {
+              bsonType: "array",
+              minItems: 2,
+              maxItems: 2,
+              items: {
+                bsonType: "double",
+              },
+            },
+            street: { bsonType: "string" },
+            zipcode: { bsonType: "string" },
+          },
+        },
+        borough: { bsonType: "string" },
+        cuisine: { bsonType: "string" },
+        grades: {
+          bsonType: "array",
+          items: {
+            bsonType: "object",
+            required: ["date", "grade", "score"],
+            properties: {
+              date: { bsonType: "date" },
+              grade: { bsonType: "string" },
+              score: { bsonType: "int" },
+            },
+          },
+        },
+        name: { bsonType: "string" },
+        restaurant_id: { bsonType: "string" },
+        discount: {
+          bsonType: "object",
+          required: ["day", "amount"],
+          properties: {
+            day: { bsonType: "string" },
+            amount: { bsonType: "int" },
+          },
+        },
+      },
+    },
+  },
+  validationLevel: "strict", // Nivel de validación: strict, moderate, off
+  validationAction: "error", // Acción: error (rechazar documento) o warn (advertir)
+});
+
+// dependencies es una palabra clave en JSON Schema
+// que permite aplicar reglas adicionales basadas en
+// la presencia de un campo.
+
+// oneOf permite definir múltiples condiciones posibles,
+// donde solo una debe ser verdadera para que la
+// validación pase.
+db.restaurants.insertOne({
+  // va
+  address: {
+    building: "123",
+    coord: [40.7128, -74.006],
+    street: "Main Street",
+    zipcode: "10001",
+  },
+  borough: "Manhattan",
+  cuisine: "Italian",
+  grades: [
+    {
+      date: ISODate("2013-07-01T00:00:00Z"),
+      grade: "A",
+      score: 5,
+    },
+    {
+      date: ISODate("2013-12-15T00:00:00Z"),
+      grade: "B",
+      score: 4,
+    },
+  ],
+  name: "Pasta Paradise",
+  restaurant_id: "0001",
+  discount: {
+    day: "Monday",
+    amount: 10,
+  },
+});
+
+db.restaurants.insertOne({
+  // no va
+  address: {
+    building: "123",
+    coord: [40.7128, -74.006],
+    street: "Main Street",
+    zipcode: "10001",
+  },
+  borough: "Manhattan",
+  cuisine: "Italian",
+  grades: [
+    {
+      date: ISODate("2013-07-01T00:00:00Z"),
+      // "grade": "A",
+      score: 5,
+    },
+    {
+      date: ISODate("2013-12-15T00:00:00Z"),
+      grade: "B",
+      score: 4,
+    },
+  ],
+  name: "Pasta Paradise",
+  restaurant_id: "0001",
+  discount: {
+    day: "Monday",
+    amount: 10,
+  },
+});
+
+db.restaurants.insertOne({
+  // no va
+  address: {
+    building: "123",
+    coord: [40.7128, -74.006],
+    street: "Main Street",
+    zipcode: "10001",
+  },
+  borough: "Manhattan",
+  cuisine: "Italian",
+  grades: [
+    {
+      date: "2013-07-01T00:00:00Z",
+      grade: "A",
+      score: 5,
+    },
+    {
+      date: ISODate("2013-12-15T00:00:00Z"),
+      grade: "B",
+      score: 4,
+    },
+  ],
+  name: "Pasta Paradise",
+  restaurant_id: "0001",
+  discount: {
+    day: "Monday",
+    amount: 10,
+  },
+});
+
+// 7. Se desean agregar "client reviews", dados por los
+// clientes de los restaurantes. Los
+// reviews cuentan de un título de menos de 50 caracteres,
+//  un puntaje entero entre 0 y
+// 5, una reseña de máximo 250 caracteres (que es opcional)
+//  y una fecha y un cliente
+// que lo realizó (con información de nombre y correo
+//    electrónico del cliente). Cada
+// review está asociado a un restaurante y un mismo
+// restaurante puede tener varios
+// reviews. Asimismo, un cliente puede hacer reviews de
+// varios restaurantes distintos.
+// Teniendo en cuenta esto, decida la mejor manera de
+// agregar esta información a la
+// base de datos (y justifique su decisión en un
+//   comentario), genere un esquema de
+// validación para dicha información y agregue algunos
+//  documentos de ejemplo.
+
+db.createCollection("clients", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["nombre", "email"],
+      properties: {
+        nombre: {
+          bsonType: "string",
+        },
+        email: {
+          bsonType: "string",
+          pattern: "^(.*)@(.*)\\.(.{2,4})$",
+        },
+        client_id: {
+          bsonType: "objectId",
+        },
+      },
+    },
+  },
+  validationLevel: "strict", // Niveles: strict, moderate, off
+  validationAction: "error", // Acciones: error, warn
+});
+
+db.clients.drop();
+
+db.runCommand({
+  collMod: "restaurants",
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: [
+        "address",
+        "borough",
+        "cuisine",
+        "grades",
+        "name",
+        "restaurant_id",
+        "discount",
+      ],
+      properties: {
+        // Opcionales:
+        reviews: {
+          bsonType: "array",
+          items: {
+            bsonType: "object",
+            required: ["client_id", "titulo", "date", "score"],
+            properties: {
+              client_id: { bsonType: "objectId" },
+              review: { bsonType: "string", maxLength: 250 },
+              titulo: { bsonType: "string", maxLength: 50 },
+              date: { bsonType: "date" },
+              score: { bsonType: "int", maximum: 5, minimum: 0 },
+            },
+          },
+        },
+
+        // Requeridos:
+        address: {
+          bsonType: "object",
+          required: ["building", "coord", "street", "zipcode"],
+          properties: {
+            building: { bsonType: "string" },
+            coord: {
+              bsonType: "array",
+              minItems: 2,
+              maxItems: 2,
+              items: {
+                bsonType: "double",
+              },
+            },
+            street: { bsonType: "string" },
+            zipcode: { bsonType: "string" },
+          },
+        },
+        borough: { bsonType: "string" },
+        cuisine: { bsonType: "string" },
+        grades: {
+          bsonType: "array",
+          items: {
+            bsonType: "object",
+            required: ["date", "grade", "score"],
+            properties: {
+              date: { bsonType: "date" },
+              grade: { bsonType: "string" },
+              score: { bsonType: "int" },
+            },
+          },
+        },
+        name: { bsonType: "string" },
+        restaurant_id: { bsonType: "string" },
+        discount: {
+          bsonType: "object",
+          required: ["day", "amount"],
+          properties: {
+            day: { bsonType: "string" },
+            amount: { bsonType: "int" },
+          },
+        },
+      },
+    },
+  },
+  validationLevel: "strict", // Nivel de validación: strict, moderate, off
+  validationAction: "error", // Acción: error (rechazar documento) o warn (advertir)
+});
+
+db.clients.insertOne({
+  nombre: "Juan",
+  email: "Juam@gmail.com",
+  client_id: ObjectId()
+});
+
+db.restaurants.findOne()
+
+const clientId = db.clients.findOne({ nombre: "Juan" }).client_id;
+db.restaurants.insertOne({
+  // va
+  address: {
+    building: "123",
+    coord: [40.7128, -74.006],
+    street: "Main Street",
+    zipcode: "10001",
+  },
+  borough: "Manhattan",
+  cuisine: "Italian",
+  reviews: [
+    {
+      client_id: clientId,
+      review: "re feo",
+      titulo: "re feo",
+      date: ISODate("2014-03-03T00:00:00Z"),
+      score: 0
+    },
+  ],
+  grades: [
+    {
+      date: ISODate("2013-07-01T00:00:00Z"),
+      grade: "A",
+      score: 5,
+    },
+    {
+      date: ISODate("2013-12-15T00:00:00Z"),
+      grade: "B",
+      score: 4,
+    },
+  ],
+  name: "Pasta Paradise",
+  restaurant_id: "0001",
+  discount: {
+    day: "Monday",
+    amount: 10,
+  },
+});
+
+clientId = db.clients.findOne({ nombre: "Juan" }).client_id;
+db.restaurants.insertOne({
+  // va
+  address: {
+    building: "123",
+    coord: [40.7128, -74.006],
+    street: "Main Street",
+    zipcode: "10001",
+  },
+  borough: "Manhattan",
+  cuisine: "Italian",
+  reviews: [
+    {
+      client_id: clientId,
+      titulo: "re feo",
+      date: ISODate("2014-03-03T00:00:00Z"),
+      score: 0
+    },
+  ],
+  grades: [
+    {
+      date: ISODate("2013-07-01T00:00:00Z"),
+      grade: "A",
+      score: 5,
+    },
+    {
+      date: ISODate("2013-12-15T00:00:00Z"),
+      grade: "B",
+      score: 4,
+    },
+  ],
+  name: "Pasta Paradise",
+  restaurant_id: "0001",
+  discount: {
+    day: "Monday",
+    amount: 10,
+  },
+});
+
+clientId = db.clients.findOne({ nombre: "Juan" }).client_id;
+db.restaurants.insertOne({
+  // no va
+  address: {
+    building: "123",
+    coord: [40.7128, -74.006],
+    street: "Main Street",
+    zipcode: "10001",
+  },
+  borough: "Manhattan",
+  cuisine: "Italian",
+  reviews: [
+    {
+      client_id: clientId,
+      review: "re feo",
+      date: ISODate("2014-03-03T00:00:00Z"),
+      score: 0
+    },
+  ],
+  grades: [
+    {
+      date: ISODate("2013-07-01T00:00:00Z"),
+      grade: "A",
+      score: 5,
+    },
+    {
+      date: ISODate("2013-12-15T00:00:00Z"),
+      grade: "B",
+      score: 4,
+    },
+  ],
+  name: "Pasta Paradise",
+  restaurant_id: "0001",
+  discount: {
+    day: "Monday",
+    amount: 10,
+  },
+});
